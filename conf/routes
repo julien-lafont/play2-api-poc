@@ -1,0 +1,15 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Home page
+GET     /                                           controllers.Application.index
+
+GET     /api/v1/members                            controllers.api.Members.profile
+PUT     /api/v1/members/checkSubscription           controllers.api.Members.checkSubscription
+POST    /api/v1/members/subscribe                   controllers.api.Members.subscribe
+PUT     /api/v1/members/update/:id                  controllers.api.Members.updateProfil(id: Long)
+POST    /api/v1/members/authenticate                controllers.api.Members.authenticate
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file               controllers.Assets.at(path="/public", file)
