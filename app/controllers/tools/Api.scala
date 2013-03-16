@@ -14,7 +14,7 @@ import play.api.libs.json.Json.JsValueWrapper
 trait Api extends Controller with JsonResult with ApiParameters {
 
   implicit def post(implicit request: Request[AnyContent]): Map[String, String] = {
-    request.body.asFormUrlEncoded.map(_.mapValues(p => p.head)).getOrElse(throw new Exception("wrong format: please send as POST"))
+    request.body.asFormUrlEncoded.map(_.mapValues(p => p.head)).getOrElse(throw new Exception("POST expected (with Content-Type: application/x-www-form-urlencoded;), but "+request.method+" found"))
   }
 
   def toDate(date: String): DateTime = {
@@ -57,6 +57,7 @@ trait JsonResult {
   // Special errors
   def forbidden(): Result = error("Forbidden", FORBIDDEN)
   def notfound(): Result = error("Not found", NOT_FOUND)
+  def badrequest(): Result = error("Bad request", BAD_REQUEST)
 
   /**
    * Return custom response

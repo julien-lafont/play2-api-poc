@@ -3,15 +3,16 @@ package controllers.api
 import play.api._
 import libs.json.Json
 import play.api.mvc._
-import controllers.tools.Api
+import controllers.tools._
 import models.Member
 import models.MemberJson._
 
-object Members extends Api {
+object Members extends Security with Api {
 
   val paramLogin = Param[String]("login", MinLength(4), Callback(Member.validLogin, "Login already registered"))
   val paramEmail = Param[String]("email", Email(), Callback(Member.validEmail, "Email already registered"))
   val paramPassword = Param[String]("password")
+
 
   /**
    * Check if required parameters for a subscription are valid
@@ -27,7 +28,7 @@ object Members extends Api {
   def subscribe = Action { implicit request =>
     ApiParameters(paramLogin, paramEmail, paramPassword) { (login, email, password) =>
       val uid = java.util.UUID.randomUUID().toString
-      val member = Member(None, email, login, Member.hashPassword(password, uid), uid)
+      val member = Member(None, login, email, Member.hashPassword(password, uid), uid)
       val insertedId = Member.insert(member)
       ok(Json.obj("id" -> insertedId))
     }
@@ -44,7 +45,7 @@ object Members extends Api {
           Member.authenticate(member).map(token =>
             ok(token)
           ) getOrElse(forbidden)
-        case None => forbidden
+        case None => badrequest
       }
     }
   }
@@ -63,20 +64,24 @@ object Members extends Api {
   /**
    * Update a member profile. Each field is optional
    */
-  def updateProfil(id: Long) = Action { implicit request =>
-    Member.findById(id).collect {
-      case member if member.id == member.id /* todo: get myId */ => {
-        val updatedMember = member.copy(
-          firstName = post.get("firstName").orElse(member.firstName),
-          lastName = post.get("lastName").orElse(member.lastName),
-          birthDate = post.get("birthDate").map(toDate(_)).orElse(member.birthDate),
-          sex = post.get("sex").flatMap(sex => if (sex=="h" || sex=="f") Some(sex) else None).orElse(member.sex),
-          city = post.get("city").orElse(member.city)
-        )
-        Member.update(id, updatedMember)
-        ok
-      }
-    } getOrElse(forbidden)
+  def updateMyProfil = Authenticated { implicit request =>
+    Member.update(me.id.get, me.copy(
+      firstName = post.get("firstName").orElse(me.firstName),
+      lastName  = post.get("lastName").orElse(me.lastName),
+      birthDate = post.get("birthDate").map(toDate(_)).orElse(me.birthDate),
+      sex       = post.get("sex").flatMap(sex => if (sex=="h" || sex=="f") Some(sex) else None).orElse(me.sex),
+      city      = post.get("city").orElse(me.city)
+    ))
+    ok
+  }
+
+  /**
+   * Search a member from multiple criterias. Each field is optional
+   */
+  def search(login: Option[String], firstName: Option[String], lastName: Option[String],
+             sex: Option[String], city: Option[String], age: Option[Int],
+             page: Option[Int], per_page: Option[Int]) = Authenticated { implicit request =>
+    ok(Member.search(login, firstName, lastName, sex, city, age, page, per_page))
   }
 
 }
