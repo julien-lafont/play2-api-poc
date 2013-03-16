@@ -45,7 +45,7 @@ object Members extends Security with Api {
           Member.authenticate(member).map(token =>
             ok(token)
           ) getOrElse(forbidden)
-        case None => badrequest
+        case None => badrequest()
       }
     }
   }

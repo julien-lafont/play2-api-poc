@@ -53,11 +53,12 @@ trait JsonResult {
    * Return error response with custom status and message
    */
   def error(error: String, code: Int = INTERNAL_SERVER_ERROR): Result = result(code, error = JsString(error))
+  def error(errors: JsValue, code: Int = BAD_REQUEST): Result = result(code, error = errors)
 
   // Special errors
   def forbidden(): Result = error("Forbidden", FORBIDDEN)
   def notfound(): Result = error("Not found", NOT_FOUND)
-  def badrequest(): Result = error("Bad request", BAD_REQUEST)
+  def badrequest(msg: String = "Bad request"): Result = error(msg, BAD_REQUEST)
 
   /**
    * Return custom response
