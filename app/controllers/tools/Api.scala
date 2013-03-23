@@ -3,7 +3,7 @@ package controllers.tools
 import play.api.libs.json._
 import play.api.mvc._
 import scala.util.{Failure, Try, Success}
-import org.joda.time.DateTime
+import org.joda.time.{LocalDate, DateTime}
 import play.api.Logger
 
 import play.api.Play.current
@@ -17,8 +17,8 @@ trait Api extends Controller with JsonResult with ApiParameters {
     request.body.asFormUrlEncoded.map(_.mapValues(p => p.head)).getOrElse(throw new Exception("POST expected (with Content-Type: application/x-www-form-urlencoded;), but "+request.method+" found"))
   }
 
-  def toDate(date: String): DateTime = {
-    ISODateTimeFormat.date().parseDateTime(date)
+  def toDate(date: String): LocalDate = {
+    ISODateTimeFormat.date().parseLocalDate(date)
   }
 
 }
@@ -49,11 +49,14 @@ trait JsonResult {
   def ok(fields: (String, JsValueWrapper)*): Result = ok(Json.obj(fields:_*))
   def ok(): Result = result(200)
 
+  def tryOk(r: => Unit): Result = Try { r; ok() }.getOrElse(error("Unexpected error"))
+
+
   /**
    * Return error response with custom status and message
    */
   def error(error: String, code: Int = INTERNAL_SERVER_ERROR): Result = result(code, error = JsString(error))
-  def error(errors: JsValue, code: Int = BAD_REQUEST): Result = result(code, error = errors)
+  def errorForm(errors: JsValue, code: Int = BAD_REQUEST): Result = result(code, error = errors)
 
   // Special errors
   def forbidden(): Result = error("Forbidden", FORBIDDEN)

@@ -36,7 +36,7 @@ object MembersComparaison extends Api with Security {
       })
     )
     checkSubscriptionForm.bindFromRequest.fold(
-      errors => error(errors.errorsAsJson),
+      errors => errorForm(errors.errorsAsJson),
       success => ok
     )
   }
@@ -51,7 +51,7 @@ object MembersComparaison extends Api with Security {
   }
 
 
-  
+
   // ========== Subscribe new member : Comparaisons ===================
 
   // ----- From scratch
@@ -83,7 +83,7 @@ object MembersComparaison extends Api with Security {
       })
     )
     subscribtionForm.bindFromRequest.fold(
-      errors => error(errors.errorsAsJson),
+      errors => errorForm(errors.errorsAsJson),
       data => data match {
         case (login, email, password) => {
           val member = Member(None, login, email, Member.hashPassword(password, uid), uid)

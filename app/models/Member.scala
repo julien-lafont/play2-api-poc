@@ -1,6 +1,6 @@
 package models
 
-import org.joda.time.DateTime
+import org.joda.time.{LocalDate, LocalDateTime, DateTime}
 
 import play.api.Play.current
 
@@ -10,8 +10,10 @@ import play.api.libs.Crypto
 
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import models._
 import play.api.Logger
+import utils.Config
+
+import com.github.tototoshi.slick.JodaSupport._
 
 case class Member(
   id: OptLong,
@@ -19,25 +21,57 @@ case class Member(
   email: String,
   password: String,
   uid: String,
-  subscribeDate: DateTime = DateTime.now(),
-  lastConnectDate: DateTime = DateTime.now(),
+  subscribeDate: Long = DateTime.now.getMillis,
+  lastConnectDate: Long = DateTime.now.getMillis,
   isActive: Boolean = true,
   sex: OptString = None,
   firstName: OptString = None,
   lastName: OptString = None,
-  birthDate: Option[DateTime] = None,
+  birthDate: Option[Long] = None,
   city: OptString = None,
+  description: OptString = None,
+  mainPicture: OptLong = None,
   securityKey: OptString = None,
-  token: OptString = None,
-  expirationToken: Option[DateTime] = None
+  token: OptString = None
 ) {
-  lazy val zodiac = birthDate.map(Zodiac.sign(_)).getOrElse("Inconnu")
+  lazy val zodiac = birthDateTime.map(Zodiac.sign(_)).getOrElse("Inconnu")
+  lazy val mainPicturePath = mainPicture.flatMap(idPhoto => Photo.findById(idPhoto).map(_.path))
+
+  lazy val subscribeDateTime = new DateTime(subscribeDate)
+  lazy val lastConnectDateTime = new DateTime(lastConnectDate)
+  lazy val birthDateTime = birthDate.map(new LocalDate(_))
 }
 
-object Member extends Table[Member]("members") with CustomTypes {
+object Member extends MemberDB {
 
-  lazy val secret = play.api.Play.current.configuration.getString("application.auth.secret").getOrElse(throw new Exception("No application.auth.secret defined"))
+  lazy val secret = Config.getString("wenria.auth.secret")
   val DEFAULT_PAGINATION = 20
+
+  def search( search: MemberSearch,
+              offset: OptInt = None,
+              limit: OptInt = None) = DB.withSession { implicit s =>
+    val query = MemberSearch(search).sortBy(_.id.asc).drop(offset.getOrElse(0))
+    val queryLimited = limit.map(l => query.take(l)).getOrElse(query)
+    queryLimited.list()
+  }
+
+  def authenticate(member: Member): Option[JsValue] = {
+    member.id.map { id =>
+      val token = java.util.UUID.randomUUID().toString + "/" + Crypto.sign(member.login, secret.getBytes)
+      val authMember = member.copy(token = Some(token))
+      update(id, authMember)
+      Json.obj("token" -> token) // TODO VIRER JSON HERE
+    }
+  }
+
+  def hashPassword(password: String, key: String) = {
+    // TODO
+    password+key
+  }
+
+}
+
+abstract class MemberDB extends Table[Member]("members") with CustomTypes {
 
   def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def login = column[String]("login", O.NotNull, O.DBType("varchar(50)"))
@@ -47,14 +81,35 @@ object Member extends Table[Member]("members") with CustomTypes {
   def sex = column[String]("sex", O.DBType("varchar(1)"), O.Nullable)
   def firstName = column[String]("firstName", O.Nullable)
   def lastName = column[String]("lastName", O.Nullable)
-  def birthDate = column[DateTime]("birthDate", O.Nullable)
+  def birthDate = column[Long]("birthDate", O.Nullable)
   def city = column[String]("city", O.DBType("varchar(100)"), O.Nullable)
-  def subscribeDate = column[DateTime]("suscribeDate")
-  def lastConnectDate = column[DateTime]("lastConnectDate")
+  def descripton = column[String]("description", O.DBType("varchar(255)"), O.Nullable)
+  def mainPicture = column[Long]("mainPicture", O.Nullable)
+  def subscribeDate = column[Long]("suscribeDate")
+  def lastConnectDate = column[Long]("lastConnectDate")
   def isActive = column[Boolean]("isActive")
   def securityKey = column[String]("securityKey", O.Nullable)
   def token = column[String]("token", O.Nullable)
-  def expirationToken = column[DateTime]("expirationToken", O.Nullable)
+
+  def * = (id.? ~ login ~ email ~ password ~ uid ~ subscribeDate ~ lastConnectDate ~
+    isActive ~ sex.? ~ firstName.? ~ lastName.? ~ birthDate.? ~
+    city.? ~ descripton.? ~ mainPicture.? ~ securityKey.? ~ token.?
+    ) <> (Member.apply _, Member.unapply _)
+
+  def insert(member: Member): Long = DB.withSession { implicit session =>
+    (* returning id).insert(member)
+  }
+
+  /** Used for mock login in dev mode */
+  def findOneRandom(): Option[Member] = DB.withSession { implicit session =>
+    Query(Member).take(1).firstOption()
+  }
+
+  def update(id: Long, member: Member) {
+    DB.withSession { implicit session =>
+      Query(Member).where(_.id === id).update(member.copy(Some(id)))
+    }
+  }
 
   def findById(id: Long): Option[Member] = DB.withSession { implicit session =>
     Query(Member).filter(t => t.id === id && t.isActive === true).firstOption // Handle active?
@@ -76,63 +131,38 @@ object Member extends Table[Member]("members") with CustomTypes {
     !Query(Member.filter(_.email === email.trim).exists).first
   }
 
-  def search( login: OptString = None,
-              firstName: OptString = None,
-              lastName: OptString = None,
-              sex: OptString = None,
-              city: OptString = None,
-              age: OptInt = None,
-              page: OptInt = None,
-              per_page: OptInt = None) = DB.withSession { implicit s =>
+}
 
-    var q = Query(Member).filter(_.isActive === true) // Not found a better way do do this...
-    if (login.isDefined)      q = q.filter(_.login like '%' + login.get + '%')
-    if (firstName.isDefined)  q = q.filter(_.firstName like '%' + firstName.get + '%')
-    if (lastName.isDefined)   q = q.filter(_.lastName like '%' + lastName.get + '%')
-    if (sex.isDefined)        q = q.filter(_.sex === sex.get)
-    if (city.isDefined)       q = q.filter(_.city === city.get)
-    if (age.isDefined)        q = q.filter(m => m.birthDate > DateTime.now().minusYears(age.get+1) &&
-                                                m.birthDate < DateTime.now().minusYears(age.get))
+case class MemberSearch(
+  login: OptString = None,
+  firstName: OptString = None,
+  lastName: OptString = None,
+  sex: OptString = None,
+  city: OptString = None,
+  age: OptInt = None
+)
 
-    q = q.drop((page.getOrElse(1) - 1) * per_page.getOrElse(DEFAULT_PAGINATION))
-    q = q.take(per_page.getOrElse(DEFAULT_PAGINATION))
+object MemberSearch {
 
-    Logger.debug("SEARCH : "+q._selectStatement)
+  def apply(filters: MemberSearch) = {
 
-    q.list()
+    val slickFilters = List[Condition[_]](
+      Condition[String](filters.firstName, (t, v) => t.firstName.toLowerCase like '%' + v.toLowerCase + '%'),
+      Condition[String](filters.lastName, (t, v) => t.lastName.toLowerCase like  '%' + v.toLowerCase + '%'),
+      Condition[String](filters.login, (t, v) => t.login.toLowerCase like '%' + v.toLowerCase + '%'),
+      Condition[String](filters.sex, (t, v) => t.sex === v),
+      Condition[String](filters.city, (t, v) => t.city.toLowerCase === v.toLowerCase)//,Condition[Int](filters.age, (t, v) => t.birthDate < new java.sql.Date(DateTime.now().minusYears(v).getMillis))
+    )
+
+    val baseQuery = Query(Member).filter(_.isActive === true)
+    slickFilters
+      .filter(_.value.isDefined)
+      .foldLeft(baseQuery)((query, condition) => query.filter(condition.toFilter))
   }
 
-  //--------- CRUD Operations ----------------
-
-  def * = (id.? ~ login ~ email ~ password ~ uid ~ subscribeDate ~ lastConnectDate ~
-    isActive ~ sex.? ~ firstName.? ~ lastName.? ~ birthDate.? ~
-    city.? ~ securityKey.? ~ token.? ~ expirationToken.?
-    ) <> (Member.apply _, Member.unapply _)
-
-  def insert(member: Member): Long = DB.withSession { implicit session =>
-    (* returning id).insert(member)
+  private case class Condition[T](val value: Option[T], val condition: (Member.type, T) => Column[Boolean]) {
+    def toFilter(t: Member.type): Column[Boolean] = condition(t, value.get)
   }
-
-  def authenticate(member: Member): Option[JsValue] = {
-    member.id.map { id =>
-      val token = java.util.UUID.randomUUID().toString + "/" + Crypto.sign(member.login, secret.getBytes)
-      val authMember = member.copy(expirationToken = Some(DateTime.now.plusHours(1)), token = Some(token))
-      update(id, authMember)
-      Json.obj("token" -> token, "expiration" -> authMember.expirationToken.get)
-    }
-  }
-
-  def update(id: Long, member: Member) {
-    DB.withSession { implicit session =>
-      Query(Member).where(_.id === id).update(member.copy(Some(id)))
-    }
-  }
-
-  def hashPassword(password: String, key: String) = {
-    // TODO
-    password+key
-  }
-
 }
 
 object MemberJson {
@@ -143,9 +173,13 @@ object MemberJson {
     (__ \ "lastName").write[OptString] and
     (__ \ "sex").write[OptString] and
     (__ \ "city").write[OptString] and
-    (__ \ "birthDate").write[Option[DateTime]] and
-    (__ \ "subscribeDate").write[DateTime] and
-    (__ \ "zodiac").write[String]
-  )((m: Member) => (m.id, m.login, m.firstName, m.lastName, m.sex, m.city, m.birthDate, m.subscribeDate, m.zodiac))
+    (__ \ "description").write[OptString] and
+    (__ \ "birthDate").write[Option[LocalDate]] and
+    (__ \ "subscribeDate").write[LocalDate] and
+    (__ \ "zodiac").write[String] and
+    (__ \ "mainPicture").write[OptString]
+  )((m: Member) =>
+    (m.id, m.login, m.firstName, m.lastName, m.sex, m.city, m.description,
+      m.birthDate.map(new LocalDate(_)), new LocalDate(m.subscribeDate), m.zodiac, m.mainPicturePath))
 
 }
