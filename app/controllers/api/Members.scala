@@ -13,10 +13,8 @@ object Members extends Security with Api {
   val paramEmail = Param[String]("email", Email(), Callback(Member.validEmail, "Email already registered"))
   val paramPassword = Param[String]("password")
 
-
   /**
    * Check if required parameters for a subscription are valid
-   *
    */
   def checkSubscription = Action { implicit request =>
     ApiParameters(paramLogin, paramEmail, POST) { (login, email) => ok }
@@ -42,9 +40,9 @@ object Members extends Security with Api {
     ApiParameters(Param[String]("login"), Param[String]("password")) { (login, password) =>
       Member.findByLogin(login) match {
         case Some(member) if Member.hashPassword(password, member.uid) == member.password =>
-          Member.authenticate(member).map(token =>
-            ok(token)
-          ) getOrElse(forbidden)
+          Member.authenticate(member)
+            .map(token => ok(token))
+            .getOrElse(forbidden)
         case None => badrequest()
       }
     }
@@ -54,9 +52,9 @@ object Members extends Security with Api {
    * Display member profile
    */
   def profile(id: Long) = Action { implicit request =>
-    Member.findById(id).collect {
-      case member if member.isActive => ok(member)
-    } getOrElse(notfound)
+    Member.findById(id)
+      .map(member => ok(member))
+      .getOrElse(notfound)
   }
 
   /**
@@ -71,12 +69,12 @@ object Members extends Security with Api {
    */
   def updateMyProfil = Authenticated { implicit request =>
       Member.update(me.id.get, me.copy(
-        firstName   = post.get("firstName").orElse(me.firstName),
-        lastName    = post.get("lastName").orElse(me.lastName),
-        birthDate   = post.get("birthDate").map(toDate(_)).orElse(me.birthDateTime).map(_.get),
-        sex         = post.get("sex").flatMap(sex => if (sex=="h" || sex=="f") Some(sex) else None).orElse(me.sex),
-        city        = post.get("city").orElse(me.city),
-        description = post.get("description").orElse(me.description)
+        firstName   = post("firstName").orElse(me.firstName),
+        lastName    = post("lastName").orElse(me.lastName),
+        birthDate   = postDateTime("birthDate").map(_.getMillis).orElse(me.birthDate),
+        sex         = post("sex").flatMap(sex => if (sex=="h" || sex=="f") Some(sex) else None).orElse(me.sex),
+        city        = post("city").orElse(me.city),
+        description = post("description").orElse(me.description)
       ))
       myProfile(request)
   }
@@ -84,10 +82,9 @@ object Members extends Security with Api {
   /**
    * Search a member from multiple criterias. Each field is optional
    */
-  def search(login: Option[String], firstName: Option[String], lastName: Option[String],
-             sex: Option[String], city: Option[String], age: Option[Int],
-             offset: Option[Int], limit: Option[Int]) = Authenticated { implicit request =>
-    ok(Member.search(MemberSearch(login, firstName, lastName, sex, city, age), offset, limit))
+  def search = Authenticated { implicit request =>
+    val filter = MemberSearch(get("login"), get("firstname"), get("lastname"), get("sex"), get("city"), getInt("age"))
+    ok(Member.search(filter))
   }
 
   /**
@@ -99,8 +96,8 @@ object Members extends Security with Api {
         errorMsg => error(errorMsg),
         idPhoto => {
           Member.update(req.me.id.get, req.me.copy(mainPicture = Some(idPhoto)))
-          Redirect(routes.Members.myProfile()) // call myProfile directly??
+          Redirect(routes.Members.myProfile())
         })
-    } getOrElse(badrequest("Unable to find file. It must be sent as `picture`"))
+    }.getOrElse(badrequest("Unable to find file. It must be sent as `picture`"))
   }
 }

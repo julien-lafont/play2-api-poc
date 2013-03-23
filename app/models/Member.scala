@@ -1,19 +1,17 @@
 package models
 
-import org.joda.time.{LocalDate, LocalDateTime, DateTime}
+import org.joda.time.{DateMidnight, LocalDate, LocalDateTime, DateTime}
 
 import play.api.Play.current
 
 import play.api.db.slick.DB
 import play.api.db.slick.Config.driver.simple._
-import play.api.libs.Crypto
+import play.api.libs.Codecs
 
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import play.api.Logger
 import utils.Config
-
-import com.github.tototoshi.slick.JodaSupport._
+import controllers.tools.Paginated
 
 case class Member(
   id: OptLong,
@@ -35,38 +33,39 @@ case class Member(
   token: OptString = None
 ) {
   lazy val zodiac = birthDateTime.map(Zodiac.sign(_)).getOrElse("Inconnu")
+
   lazy val mainPicturePath = mainPicture.flatMap(idPhoto => Photo.findById(idPhoto).map(_.path))
 
   lazy val subscribeDateTime = new DateTime(subscribeDate)
   lazy val lastConnectDateTime = new DateTime(lastConnectDate)
-  lazy val birthDateTime = birthDate.map(new LocalDate(_))
+  lazy val birthDateTime = birthDate.map(new DateMidnight(_))
 }
+
+case class Token(token: String) // Add expiration?
 
 object Member extends MemberDB {
 
   lazy val secret = Config.getString("wenria.auth.secret")
-  val DEFAULT_PAGINATION = 20
 
-  def search( search: MemberSearch,
-              offset: OptInt = None,
-              limit: OptInt = None) = DB.withSession { implicit s =>
-    val query = MemberSearch(search).sortBy(_.id.asc).drop(offset.getOrElse(0))
-    val queryLimited = limit.map(l => query.take(l)).getOrElse(query)
-    queryLimited.list()
+  def search(search: MemberSearch)(implicit pagination: Paginated) = DB.withSession { implicit s =>
+    MemberSearch(search)
+      .sortBy(_.id.asc)
+      .drop(pagination.offset)
+      .take(pagination.limit)
+      .list()
   }
 
-  def authenticate(member: Member): Option[JsValue] = {
+  def authenticate(member: Member): Option[Token] = {
     member.id.map { id =>
-      val token = java.util.UUID.randomUUID().toString + "/" + Crypto.sign(member.login, secret.getBytes)
+      val token = java.util.UUID.randomUUID().toString + "/" + Codecs.sha1(member.login + secret)
       val authMember = member.copy(token = Some(token))
       update(id, authMember)
-      Json.obj("token" -> token) // TODO VIRER JSON HERE
+      Token(token)
     }
   }
 
   def hashPassword(password: String, key: String) = {
-    // TODO
-    password+key
+    Codecs.sha1(password + key + secret)
   }
 
 }
@@ -149,9 +148,11 @@ object MemberSearch {
     val slickFilters = List[Condition[_]](
       Condition[String](filters.firstName, (t, v) => t.firstName.toLowerCase like '%' + v.toLowerCase + '%'),
       Condition[String](filters.lastName, (t, v) => t.lastName.toLowerCase like  '%' + v.toLowerCase + '%'),
-      Condition[String](filters.login, (t, v) => t.login.toLowerCase like '%' + v.toLowerCase + '%'),
       Condition[String](filters.sex, (t, v) => t.sex === v),
-      Condition[String](filters.city, (t, v) => t.city.toLowerCase === v.toLowerCase)//,Condition[Int](filters.age, (t, v) => t.birthDate < new java.sql.Date(DateTime.now().minusYears(v).getMillis))
+      Condition[String](filters.city, (t, v) => t.city === v),
+      Condition[Int](filters.age, (t, v) =>
+        t.birthDate >= DateTime.now.minusYears(v+1).getMillis &&
+        t.birthDate <= DateTime.now.minusYears(v).getMillis)
     )
 
     val baseQuery = Query(Member).filter(_.isActive === true)
@@ -166,7 +167,9 @@ object MemberSearch {
 }
 
 object MemberJson {
-  implicit val memberProfile = (
+
+  // Json writer for a public member profile
+  implicit val membreProfileWriter = (
     (__ \ "id").writeNullable[Long] and
     (__ \ "login").write[String] and
     (__ \ "firstName").write[OptString] and
@@ -180,6 +183,9 @@ object MemberJson {
     (__ \ "mainPicture").write[OptString]
   )((m: Member) =>
     (m.id, m.login, m.firstName, m.lastName, m.sex, m.city, m.description,
-      m.birthDate.map(new LocalDate(_)), new LocalDate(m.subscribeDate), m.zodiac, m.mainPicturePath))
+      m.birthDate.map(new LocalDate(_)), new LocalDate(m.subscribeDate), m.zodiac,
+      m.mainPicturePath))
 
+  // Json writer for the private security token
+  implicit val tokenWriter = (__ \ "token").write[String].contramap { t: Token => t.token }
 }

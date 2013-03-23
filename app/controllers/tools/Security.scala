@@ -22,7 +22,7 @@ trait Security {
 
     token.flatMap(t => Member.findByToken(t)).map(member =>
       action(AuthenticatedRequest(member, request))
-    ) orElse { // Mock in dev mode
+    ).orElse { // Mock in dev mode
       if (play.api.Play.isDev) {
         Member.findOneRandom().map { user =>
           Logger.warn(s"Invalid token received, mock logged user to #${user.id.get}: ${user.login}")
@@ -31,7 +31,7 @@ trait Security {
       } else {
         None
       }
-    } getOrElse(error("This request requires a valid token", FORBIDDEN))
+    }.getOrElse(error("This request requires a valid token", FORBIDDEN))
   }
 
   /**

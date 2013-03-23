@@ -9,12 +9,13 @@ PUT     /api/v1/members/checkSubscription           controllers.api.Members.chec
 POST    /api/v1/members/subscribe                   controllers.api.Members.subscribe
 PUT     /api/v1/members/update                      controllers.api.Members.updateMyProfil
 POST    /api/v1/members/authenticate                controllers.api.Members.authenticate
-GET     /api/v1/members/search                      controllers.api.Members.search(login: Option[String], firstName: Option[String], lastName: Option[String], sex: Option[String], city: Option[String], age: Option[Int], page: Option[Int], per_page: Option[Int])
+GET     /api/v1/members/search                      controllers.api.Members.search
 POST    /api/v1/members/updateMainPicture           controllers.api.Members.updateMainPicture
 GET     /api/v1/members/me                          controllers.api.Members.myProfile
 GET     /api/v1/members/:id                         controllers.api.Members.profile(id: Long)
 
 GET     /api/v1/assets/*file                        controllers.api.Assets.serve(file)
+#GET     /api/v1/assets/*file                        controllers.api.Assets.serveResize(file)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)

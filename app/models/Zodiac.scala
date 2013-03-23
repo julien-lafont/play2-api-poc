@@ -1,6 +1,6 @@
 package models
 
-import org.joda.time.{LocalDate, DateTime}
+import org.joda.time.{DateMidnight, LocalDate, DateTime}
 
 object Zodiac {
 
@@ -19,7 +19,7 @@ object Zodiac {
     "1221" -> "Sagittaire",
     "1300" -> "Capricorne")
 
-  def sign(date: LocalDate) = {
+  def sign(date: DateMidnight) = {
     val dateStr = "%02d%02d".format(date.getMonthOfYear, date.getDayOfMonth)
     signs.dropWhile(e => e._1 < dateStr).head._2
   }

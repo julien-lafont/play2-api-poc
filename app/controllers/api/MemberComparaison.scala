@@ -58,9 +58,9 @@ object MembersComparaison extends Api with Security {
   def subscribeNative = Action { implicit request =>
     val uid = java.util.UUID.randomUUID().toString
     val member = for {
-      login <- post.get("login") if (login.length > 4 && Member.validLogin(login))
-      email <- post.get("email") if (!"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,4}".r.findAllIn(email).isEmpty && Member.validEmail(email))
-      password <- post.get("password") if (!password.isEmpty)
+      login <- post("login") if (login.length > 4 && Member.validLogin(login))
+      email <- post("email") if (!"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,4}".r.findAllIn(email).isEmpty && Member.validEmail(email))
+      password <- post("password") if (!password.isEmpty)
     } yield Member(None, login, email, Member.hashPassword(password, uid), uid)
 
     member

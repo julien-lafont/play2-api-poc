@@ -27,8 +27,8 @@ TODO :
 * Une réponse `200` sans contenu n'est pas un bug, juste qu'il n'y avait rien de spécial à dire !
 * Les dates doivent être transmises au format ISO 8601 (ex: `2013-04-22T14:00:00+01:00` pur les DateTime, et `2013-04-22` pour les Date)
 * Les API paginées sont normalisées via 2 paramètres GET
-  * `?page=X`: Page à récupérer (débute à 1)
-  * `?per_page=X`: Nombre d'éléments à remonter (max 300) // TODO
+  * `?offset=X`: Index du premier élément à afficher (default: 0)
+  * `?limit=X`: Nombre d'éléments par page (default: 20, max: 100)
 
 ## Sécurisation de l'API
 
@@ -83,7 +83,7 @@ Réponse
 
 ### Mettre à jour mes informations `token requis`
 
-Paramètres : firstName, lastName, description, sex (h/f), birthDate, city (facultatifs)
+Paramètres : firstname, lastname, description, sex (h/f), birthDate, city (facultatifs)
 
     http PUT http://localhost:9000/api/v1/members/update firstName=Julien -f
 
@@ -91,10 +91,14 @@ Paramètres : firstName, lastName, description, sex (h/f), birthDate, city (facu
 
 ### Rechercher des membres `token requis`
 
-Paramètres : login, firstName, lastName, sex (h/f), city, age (facultatifs)
+Paramètres : login, firstname, lastname, sex (h/f), city, age (facultatifs)
 
     http GET http://localhost:9000/api/v1/members/search?login=titi
     
 >     [ List "MyProfile" ]
 
-qdsqsd
+# Assets
+
+### Afficher une photo
+
+    http GET http://localhost:9000/api/v1/assets/[path]

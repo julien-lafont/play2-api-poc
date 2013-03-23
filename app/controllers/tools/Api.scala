@@ -10,20 +10,30 @@ import play.api.Play.current
 import scala.util.matching.Regex
 import org.joda.time.format.ISODateTimeFormat
 import play.api.libs.json.Json.JsValueWrapper
+import math._
+import scala.util.Failure
+import play.api.libs.json.JsString
+import scala.Some
+import scala.util.Success
 
-trait Api extends Controller with JsonResult with ApiParameters {
+trait Api extends Controller with JsonResult with ApiParameters with ApiPaginated {
 
-  implicit def post(implicit request: Request[AnyContent]): Map[String, String] = {
-    request.body.asFormUrlEncoded.map(_.mapValues(p => p.head)).getOrElse(throw new Exception("POST expected (with Content-Type: application/x-www-form-urlencoded;), but "+request.method+" found"))
-  }
+  // Some shortcuts
+  def post(key: String)(implicit request: Request[AnyContent]) = request.body.asFormUrlEncoded.flatMap(_.get(key).flatMap(_.headOption))
+  def postLong(key: String)(implicit request: Request[AnyContent]) = post(key).map(_.toLong)
+  def postInt(key: String)(implicit request: Request[AnyContent]) = post(key).map(_.toInt)
+  def postDateTime(key: String)(implicit request: Request[AnyContent]) = post(key).map(toDate)
 
-  def toDate(date: String): LocalDate = {
-    ISODateTimeFormat.date().parseLocalDate(date)
-  }
+  def get(key: String)(implicit request: RequestHeader) = request.getQueryString(key)
+  def getLong(key: String)(implicit request: RequestHeader) = get(key).map(_.toLong)
+  def getInt(key: String)(implicit request: RequestHeader) = get(key).map(_.toInt)
+  def getDateTime(key: String)(implicit request: RequestHeader) = get(key).map(toDate)
 
+  private def toDate(date: String): DateTime = ISODateTimeFormat.date().parseDateTime(date)
 }
 
 case class ApiException(userError: String, techError: Option[String]) extends RuntimeException
+case class Paginated(offset: Int, limit: Int)
 
 trait JsonResult {
   this: Controller =>
@@ -49,12 +59,7 @@ trait JsonResult {
   def ok(fields: (String, JsValueWrapper)*): Result = ok(Json.obj(fields:_*))
   def ok(): Result = result(200)
 
-  def tryOk(r: => Unit): Result = Try { r; ok() }.getOrElse(error("Unexpected error"))
-
-
-  /**
-   * Return error response with custom status and message
-   */
+  // Simple error
   def error(error: String, code: Int = INTERNAL_SERVER_ERROR): Result = result(code, error = JsString(error))
   def errorForm(errors: JsValue, code: Int = BAD_REQUEST): Result = result(code, error = errors)
 
@@ -109,6 +114,22 @@ trait ApiValidation {
 }
 
 /**
+ * Add an implicit Paginated to get pagination variables
+ * offset: index of the first result (first: 0)
+ * limit: number of object to return (max: 100, default: 20)
+ */
+trait ApiPaginated {
+  this: Controller =>
+
+  implicit def bindPaginationFromRequest(implicit req: RequestHeader): Paginated = {
+    val offset = req.getQueryString("offset").map(_.toInt).map(o => max(0, o)) // Min=0
+    val limit = req.getQueryString("limit").map(_.toInt).map(l => min(max(1, l), 100)) // Min=1, Max=100
+    Paginated(offset.getOrElse(0), limit.getOrElse(20))
+  }
+
+}
+
+/**
  * Extract and check parameters
  */
 trait ApiParameters extends JsonResult with ApiTransformers with ApiValidation {
@@ -119,10 +140,18 @@ trait ApiParameters extends JsonResult with ApiTransformers with ApiValidation {
   case object GET extends Method
   case object ALL extends Method
 
-  case class Param[T](name: String, validations: ParamValidation[T]*)(implicit conv: ParamTransform[T]) {
+  class Param[T](val name: String, val validations: ParamValidation[T]*)(implicit conv: ParamTransform[T]) {
     def transformer(value: String): T =
       Try(conv.transform(value))
         .getOrElse(throw new ApiParamException(s"Bad parameter `$name` (cannot convert `$value` to ${conv.typename})"))
+  }
+  object Param {
+    def apply[T](name: String, validations: ParamValidation[T]*)(implicit conv: ParamTransform[T]) = new Param[T](name, validations:_*)(conv)
+  }
+
+  class ParamOpt[T](name: String, validation: ParamValidation[T]*)(implicit conv: ParamTransform[T]) extends Param[T](name, validation:_*)
+  object ParamOpt {
+    def apply[T](name: String, validations: ParamValidation[T]*)(implicit conv: ParamTransform[T]) = new ParamOpt[T](name, validations:_*)(conv)
   }
 
   def ApiParameters[A](p1: Param[A], method: Method = POST)(block: (A) => Result)(implicit request: play.api.mvc.Request[_]) = {
