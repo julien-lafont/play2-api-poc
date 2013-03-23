@@ -1,11 +1,11 @@
 package controllers.tools
 
 import play.api.mvc._
-import models.Member
+import models.Membre
 import play.api.Play.current
 import play.api._
 
-sealed case class AuthenticatedRequest[A](me: Member, private val request: Request[A])
+sealed case class AuthenticatedRequest[A](me: Membre, private val request: Request[A])
   extends WrappedRequest(request)
 
 trait Security {
@@ -20,11 +20,11 @@ trait Security {
   def Authenticated[A](p: BodyParser[A])(action: AuthenticatedRequest[A] => Result) = Action(p) { implicit request =>
     val token = request.getQueryString("token").orElse(request.headers.get("Token"))
 
-    token.flatMap(t => Member.findByToken(t)).map(member =>
+    token.flatMap(t => Membre.findByToken(t)).map(member =>
       action(AuthenticatedRequest(member, request))
     ).orElse { // Mock in dev mode
       if (play.api.Play.isDev) {
-        Member.findOneRandom().map { user =>
+        Membre.findOneRandom().map { user =>
           Logger.warn(s"Invalid token received, mock logged user to #${user.id.get}: ${user.login}")
           action(AuthenticatedRequest(user, request))
         }

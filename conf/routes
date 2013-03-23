@@ -10,7 +10,7 @@ POST    /api/v1/members/subscribe                   controllers.api.Members.subs
 PUT     /api/v1/members/update                      controllers.api.Members.updateMyProfil
 POST    /api/v1/members/authenticate                controllers.api.Members.authenticate
 GET     /api/v1/members/search                      controllers.api.Members.search
-POST    /api/v1/members/updateMainPicture           controllers.api.Members.updateMainPicture
+POST    /api/v1/members/uploadProfilPicture         controllers.api.Members.uploadProfilPicture
 GET     /api/v1/members/me                          controllers.api.Members.myProfile
 GET     /api/v1/members/:id                         controllers.api.Members.profile(id: Long)
 

@@ -16,8 +16,8 @@ case class Photo(
   id: Option[Long] = None,
   path: String,
   contentType: String,
-  alert: Int = 0,
-  display: Boolean = true)
+  signalement: Int = 0,
+  estActif: Boolean = true)
 
 object Photo extends PhotoDB {
 
@@ -69,21 +69,21 @@ abstract class PhotoDB extends Table[Photo]("photos") {
   def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def path = column[String]("login", O.NotNull)
   def contentType = column[String]("contentType", O.NotNull)
-  def alert = column[Int]("email", O.NotNull)
-  def display = column[Boolean]("password", O.NotNull)
+  def signalement = column[Int]("signalement", O.NotNull)
+  def estAffiche = column[Boolean]("estAffiche", O.NotNull)
 
-  def * = (id.? ~ path ~ contentType ~ alert ~ display) <> (Photo.apply _, Photo.unapply _)
+  def * = (id.? ~ path ~ contentType ~ signalement ~ estAffiche) <> (Photo.apply _, Photo.unapply _)
 
   def insert(photo: Photo): Long = DB.withSession { implicit session =>
     (* returning id).insert(photo)
   }
 
   def findByPath(path: String): Option[Photo] = DB.withSession { implicit session =>
-    Query(Photo).filter(p => p.path === path && p.display === true).firstOption
+    Query(Photo).filter(p => p.path === path && p.estAffiche === true).firstOption
   }
 
   def findById(id: Long): Option[Photo] = DB.withSession { implicit session =>
-    Query(Photo).filter(p => p.id === id && p.display === true).firstOption
+    Query(Photo).filter(p => p.id === id && p.estAffiche === true).firstOption
   }
 
 }

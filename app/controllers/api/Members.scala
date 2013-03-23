@@ -4,13 +4,13 @@ import play.api._
 import libs.json.Json
 import play.api.mvc._
 import controllers.tools._
-import models.{MemberSearch, Photo, Member}
-import models.MemberJson._
+import models.{MembreSearch, Photo, Membre}
+import models.MembreJson._
 
 object Members extends Security with Api {
 
-  val paramLogin = Param[String]("login", MinLength(4), Callback(Member.validLogin, "Login already registered"))
-  val paramEmail = Param[String]("email", Email(), Callback(Member.validEmail, "Email already registered"))
+  val paramLogin = Param[String]("login", MinLength(4), Callback(Membre.validLogin, "Login already registered"))
+  val paramEmail = Param[String]("email", Email(), Callback(Membre.validEmail, "Email already registered"))
   val paramPassword = Param[String]("password")
 
   /**
@@ -26,8 +26,8 @@ object Members extends Security with Api {
   def subscribe = Action { implicit request =>
     ApiParameters(paramLogin, paramEmail, paramPassword) { (login, email, password) =>
       val uid = java.util.UUID.randomUUID().toString
-      val member = Member(None, login, email, Member.hashPassword(password, uid), uid)
-      val insertedId = Member.insert(member)
+      val membre = Membre(None, login, email, Membre.hashPassword(password, uid), uid)
+      val insertedId = Membre.insert(membre)
       ok(Json.obj("id" -> insertedId))
     }
   }
@@ -38,22 +38,23 @@ object Members extends Security with Api {
    */
   def authenticate = Action { implicit request =>
     ApiParameters(Param[String]("login"), Param[String]("password")) { (login, password) =>
-      Member.findByLogin(login) match {
-        case Some(member) if Member.hashPassword(password, member.uid) == member.password =>
-          Member.authenticate(member)
+      println(Membre.findByLogin(login))
+      Membre.findByLogin(login) match {
+        case Some(membre) if Membre.hashPassword(password, membre.uid) == membre.password =>
+          Membre.authenticate(membre)
             .map(token => ok(token))
             .getOrElse(forbidden)
-        case None => badrequest()
+        case None => error("Invalid credentials")
       }
     }
   }
 
   /**
-   * Display member profile
+   * Display Membre profile
    */
   def profile(id: Long) = Action { implicit request =>
-    Member.findById(id)
-      .map(member => ok(member))
+    Membre.findById(id)
+      .map(membre => ok(membre))
       .getOrElse(notfound)
   }
 
@@ -65,37 +66,37 @@ object Members extends Security with Api {
   }
 
   /**
-   * Update a member profile. Each field is optional
+   * Update a Membre profile. Each field is optional
    */
   def updateMyProfil = Authenticated { implicit request =>
-      Member.update(me.id.get, me.copy(
-        firstName   = post("firstName").orElse(me.firstName),
-        lastName    = post("lastName").orElse(me.lastName),
-        birthDate   = postDateTime("birthDate").map(_.getMillis).orElse(me.birthDate),
-        sex         = post("sex").flatMap(sex => if (sex=="h" || sex=="f") Some(sex) else None).orElse(me.sex),
-        city        = post("city").orElse(me.city),
-        description = post("description").orElse(me.description)
+      Membre.update(me.id.get, me.copy(
+        prenom          = post("prenom").orElse(me.prenom),
+        nom             = post("nom").orElse(me.nom),
+        dateNaissanceTs = postDateTime("dateNaissance").map(_.getMillis).orElse(me.dateNaissanceTs),
+        sexe            = post("sexe").flatMap(sex => if (sex=="h" || sex=="f") Some(sex) else None).orElse(me.sexe),
+        ville           = post("ville").orElse(me.ville),
+        description     = post("description").orElse(me.description)
       ))
       myProfile(request)
   }
 
   /**
-   * Search a member from multiple criterias. Each field is optional
+   * Search a Membre from multiple criterias. Each field is optional
    */
   def search = Authenticated { implicit request =>
-    val filter = MemberSearch(get("login"), get("firstname"), get("lastname"), get("sex"), get("city"), getInt("age"))
-    ok(Member.search(filter))
+    val filter = MembreSearch(get("login"), get("prenom"), get("nom"), get("sexe"), get("ville"), getInt("age"))
+    ok(Membre.search(filter))
   }
 
   /**
    * Upload and save a new main picture
    */
-  def updateMainPicture = Authenticated(parse.multipartFormData) { req =>
+  def uploadProfilPicture = Authenticated(parse.multipartFormData) { req =>
     req.body.file("picture").map { picture =>
       Photo.uploadAndSaveFile(picture, "picture/" + req.me.id.get + "/").fold(
         errorMsg => error(errorMsg),
         idPhoto => {
-          Member.update(req.me.id.get, req.me.copy(mainPicture = Some(idPhoto)))
+          Membre.update(req.me.id.get, req.me.copy(photoProfil = Some(idPhoto)))
           Redirect(routes.Members.myProfile())
         })
     }.getOrElse(badrequest("Unable to find file. It must be sent as `picture`"))

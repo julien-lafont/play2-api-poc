@@ -1,10 +1,5 @@
 # Documentation API TwagIn
 
-TODO :
-- Vérifier les dates
-- Limiter la pagination
-
-
 ## Banalités sur les échanges avec le WS
 
 * Toutes les réponses de l'API sont en JSON
@@ -25,10 +20,17 @@ TODO :
             result: "réponse, ou null en cas d'erreur"
         }
 * Une réponse `200` sans contenu n'est pas un bug, juste qu'il n'y avait rien de spécial à dire !
-* Les dates doivent être transmises au format ISO 8601 (ex: `2013-04-22T14:00:00+01:00` pur les DateTime, et `2013-04-22` pour les Date)
+* Les dates doivent être transmises au format ISO 8601 (ex: `2013-04-22T14:00:00+01:00` pour les DateTime, et `2013-04-22` pour les Date)
 * Les API paginées sont normalisées via 2 paramètres GET
   * `?offset=X`: Index du premier élément à afficher (default: 0)
   * `?limit=X`: Nombre d'éléments par page (default: 20, max: 100)
+* Pourquoi utiliser tous ces verbes HTTP : Post, Put, Get, Delete ?
+  * En 1 mot : [RESTful](http://en.wikipedia.org/wiki/Representational_state_transfer)
+  * GET : Opération sans effet de bord - Réprésentation d'une ressource
+  * PUT : Opération avec effet de bord - [Idempotente](http://fr.wikipedia.org/wiki/Idempotence#En_informatique)
+  * POST : Opération avec effet de bord - Non idempotente
+  * DELETE : Opération de suppression d'une ressource
+
 
 ## Sécurisation de l'API
 
@@ -77,21 +79,21 @@ Réponse
 
 ### Uploader ma photo principale `token requis`
 
-    http POST http://localhost:9000/api/v1/members/updateMainPicture picture@~/Pictures/IMG_0010.jpg -f --follow
+    http POST http://localhost:9000/api/v1/members/uploadMainPicture picture@~/Pictures/IMG_0010.jpg -f --follow
 
 >     Idem "My profile"
 
 ### Mettre à jour mes informations `token requis`
 
-Paramètres : firstname, lastname, description, sex (h/f), birthDate, city (facultatifs)
+Paramètres : prenom, nom, description, sexe (h/f), dateNaissance, ville (facultatifs)
 
     http PUT http://localhost:9000/api/v1/members/update firstName=Julien -f
 
 >     Idem "My profile"
 
-### Rechercher des membres `token requis`
+### Rechercher des membres `token requis` `paginé`
 
-Paramètres : login, firstname, lastname, sex (h/f), city, age (facultatifs)
+Paramètres : login, prenom, nom, sexe (h/f), ville, age (facultatifs)
 
     http GET http://localhost:9000/api/v1/members/search?login=titi
     
