@@ -64,7 +64,7 @@ object Photo extends PhotoDB {
 
 }
 
-abstract class PhotoDB extends Table[Photo]("photos") with CustomTypes {
+abstract class PhotoDB extends Table[Photo]("photos") {
 
   def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def path = column[String]("login", O.NotNull)

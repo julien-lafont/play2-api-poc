@@ -1,6 +1,6 @@
 package models
 
-import org.joda.time.{DateMidnight, LocalDate, LocalDateTime, DateTime}
+import org.joda.time._
 
 import play.api.Play.current
 
@@ -70,7 +70,7 @@ object Member extends MemberDB {
 
 }
 
-abstract class MemberDB extends Table[Member]("members") with CustomTypes {
+abstract class MemberDB extends Table[Member]("members") {
 
   def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
   def login = column[String]("login", O.NotNull, O.DBType("varchar(50)"))
@@ -130,40 +130,6 @@ abstract class MemberDB extends Table[Member]("members") with CustomTypes {
     !Query(Member.filter(_.email === email.trim).exists).first
   }
 
-}
-
-case class MemberSearch(
-  login: OptString = None,
-  firstName: OptString = None,
-  lastName: OptString = None,
-  sex: OptString = None,
-  city: OptString = None,
-  age: OptInt = None
-)
-
-object MemberSearch {
-
-  def apply(filters: MemberSearch) = {
-
-    val slickFilters = List[Condition[_]](
-      Condition[String](filters.firstName, (t, v) => t.firstName.toLowerCase like '%' + v.toLowerCase + '%'),
-      Condition[String](filters.lastName, (t, v) => t.lastName.toLowerCase like  '%' + v.toLowerCase + '%'),
-      Condition[String](filters.sex, (t, v) => t.sex === v),
-      Condition[String](filters.city, (t, v) => t.city === v),
-      Condition[Int](filters.age, (t, v) =>
-        t.birthDate >= DateTime.now.minusYears(v+1).getMillis &&
-        t.birthDate <= DateTime.now.minusYears(v).getMillis)
-    )
-
-    val baseQuery = Query(Member).filter(_.isActive === true)
-    slickFilters
-      .filter(_.value.isDefined)
-      .foldLeft(baseQuery)((query, condition) => query.filter(condition.toFilter))
-  }
-
-  private case class Condition[T](val value: Option[T], val condition: (Member.type, T) => Column[Boolean]) {
-    def toFilter(t: Member.type): Column[Boolean] = condition(t, value.get)
-  }
 }
 
 object MemberJson {
