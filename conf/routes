@@ -5,6 +5,7 @@
 # Home page
 GET     /                                           controllers.Application.index
 
+# API Members
 PUT     /api/v1/members/checkSubscription           controllers.api.Members.checkSubscription
 POST    /api/v1/members/subscribe                   controllers.api.Members.subscribe
 PUT     /api/v1/members/update                      controllers.api.Members.updateMyProfil
@@ -14,8 +15,15 @@ POST    /api/v1/members/uploadProfilPicture         controllers.api.Members.uplo
 GET     /api/v1/members/me                          controllers.api.Members.myProfile
 GET     /api/v1/members/:id                         controllers.api.Members.profile(id: Long)
 
+# API Lieux
+GET     /api/v1/lieux/search                        controllers.api.Lieux.search
+
+# Gestion des fichiers
 GET     /api/v1/assets/*file                        controllers.api.Assets.serve(file)
 #GET     /api/v1/assets/*file                        controllers.api.Assets.serveResize(file)
+
+# Maintenance et tâces Admin
+POST    /api/v1/admin/ajouterLieu                   controllers.api.AdminTasks.ajouterLieu
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)

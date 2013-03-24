@@ -38,7 +38,6 @@ object Members extends Security with Api {
    */
   def authenticate = Action { implicit request =>
     ApiParameters(Param[String]("login"), Param[String]("password")) { (login, password) =>
-      println(Membre.findByLogin(login))
       Membre.findByLogin(login) match {
         case Some(membre) if Membre.hashPassword(password, membre.uid) == membre.password =>
           Membre.authenticate(membre)

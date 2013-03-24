@@ -85,6 +85,7 @@ trait ApiTransformers {
 
   implicit object IntParamTransform extends ParamTransform[Int](_.toInt, "Integer")
   implicit object LongParamTransform extends ParamTransform[Long](_.toLong, "Long")
+  implicit object DoubleParamTransform extends ParamTransform[Double](_.toDouble, "Double")
   implicit object StringParamTransform extends ParamTransform[String](_.toString, "String")
   implicit object BooleanParamTransform extends ParamTransform[Boolean](_.toBoolean, "Boolean")
   implicit object DateTimeParamTransform extends ParamTransform[DateTime](d => new DateTime(d.toLong), "DateTime")
@@ -105,6 +106,7 @@ trait ApiValidation {
   case class Pattern(pattern: Regex) extends RawPattern(pattern, s"Invalid pattern: ${pattern.pattern.toString}")
   case class Email(nothing: Boolean = false) extends RawPattern("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+.[a-zA-Z]{2,4}".r, "Invalid email")
   case class Callback[T](callback: T => Boolean, override val msg: String) extends ParamValidation[T](callback)
+  case class Coord(nothing: Boolean = false) extends ParamValidation[Double](c => c >= -180 && c <= 180, "Coordonnées GPS invalide")
 
   protected abstract class RawPattern(PatternValidation: Regex, msg: String) extends ParamValidation[String](_ match {
     case PatternValidation() => true

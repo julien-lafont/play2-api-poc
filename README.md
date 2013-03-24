@@ -45,7 +45,7 @@ Le token doit ensuite être transmis sur chaque requête :
 
 *Tips* : en mode `DEV` , il est possible de se passer du token. Dans ce cas, le premier compte enregistré est utilisé.
 
-# API Member : *Gestion des membres*
+# API Membres : *Gestion des membres*
 
 Pour exécuter ces commandes, utilisez le client HTTP [HTTPie](https://github.com/jkbr/httpie).
 
@@ -104,3 +104,11 @@ Paramètres : login, prenom, nom, sexe (h/f), ville, age (facultatifs)
 ### Afficher une photo
 
     http GET http://localhost:9000/api/v1/assets/[path]
+
+# API Lieux
+
+### Lister les lieux proches de ma position
+
+TODO : Rajouter plus de filtres
+
+    http GET http://localhost:9000/api/v1/lieux/search lt==43.6 lg==3.9

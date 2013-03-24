@@ -2,14 +2,11 @@ package models
 
 import org.joda.time._
 
-import play.api.Play.current
-
 import play.api.db.slick.DB
 import play.api.db.slick.Config.driver.simple._
 import play.api.libs.Codecs
+import play.api.Play.current
 
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
 import utils.Config
 import controllers.tools.Paginated
 
@@ -89,6 +86,9 @@ abstract class MembreDB extends Table[Membre]("membres") {
   def estActif = column[Boolean]("estActif")
   def securityKey = column[String]("securityKey", O.Nullable)
   def token = column[String]("token", O.Nullable)
+  // Index
+  def idxLogin = index("idx_membre_login", login)
+  def idxActif = index("idx_membre_actif", estActif)
 
   def * = (id.? ~ login ~ email ~ password ~ uid ~ subscribeDate ~ dateConnexion ~
     estActif ~ sexe.? ~ prenom.? ~ nom.? ~ dateNaissance.? ~
@@ -133,6 +133,9 @@ abstract class MembreDB extends Table[Membre]("membres") {
 }
 
 object MembreJson {
+
+  import play.api.libs.json._
+  import play.api.libs.functional.syntax._
 
   // Json writer for a public membre profile
   implicit val membreProfileWriter = (

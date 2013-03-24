@@ -8,6 +8,8 @@ object ApplicationBuild extends Build {
   val appVersion      = "1.0-SNAPSHOT"
 
   val appDependencies = Seq(
+    anorm,
+    jdbc,
     "com.typesafe" % "play-slick_2.10" % "0.3.0",
     "net.coobird" % "thumbnailator" % "0.4.3",
     "com.github.scala-incubator.io" %% "scala-io-core" % "0.4.2",
