@@ -49,7 +49,7 @@ Le token doit ensuite être transmis sur chaque requête :
 
 Pour exécuter ces commandes, utilisez le client HTTP [HTTPie](https://github.com/jkbr/httpie).
 
-### Voir le profil d'un membre / Voir mon profil `token requis`
+### Voir le profil d'un membre / Voir mon profil `sécurisée`
 
     http GET http://localhost:9000/api/v1/members/1
     http GET http://localhost:9000/api/v1/members/me
@@ -77,13 +77,13 @@ Réponse
 
 >     200 / 400
 
-### Uploader ma photo principale `token requis`
+### Uploader ma photo principale `sécurisée`
 
     http POST http://localhost:9000/api/v1/members/uploadMainPicture picture@~/Pictures/IMG_0010.jpg -f --follow
 
 >     Idem "My profile"
 
-### Mettre à jour mes informations `token requis`
+### Mettre à jour mes informations `sécurisée`
 
 Paramètres : prenom, nom, description, sexe (h/f), dateNaissance, ville (facultatifs)
 
@@ -91,7 +91,7 @@ Paramètres : prenom, nom, description, sexe (h/f), dateNaissance, ville (facult
 
 >     Idem "My profile"
 
-### Rechercher des membres `token requis` `paginé`
+### Rechercher des membres `sécurisée` `paginée`
 
 Paramètres : login, prenom, nom, sexe (h/f), ville, age (facultatifs)
 
@@ -107,7 +107,7 @@ Paramètres : login, prenom, nom, sexe (h/f), ville, age (facultatifs)
 
 # API Lieux
 
-### Lister les lieux proches de ma position
+### Lister les lieux proches de ma position `paginée` `sécurisée`
 
 TODO : Rajouter plus de filtres
 
